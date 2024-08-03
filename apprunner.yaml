@@ -1,7 +1,9 @@
 version: 1.0
 runtime: go1
 build:
-  command: go build -o main
+  commands:
+    build:
+      - go build -o main main.go
 run:
   command: ./main
   network:
