@@ -1,0 +1,10 @@
+version: 1.0
+runtime: golang
+build:
+  commands:
+    build:
+      - go build -o main
+run:
+  command: ./main
+  network:
+    port: 8080
