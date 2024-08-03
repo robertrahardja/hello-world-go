@@ -1,5 +1,5 @@
 version: 1.0
-runtime: go1.x
+runtime: go1
 build:
   command: go build -o main
 run:
