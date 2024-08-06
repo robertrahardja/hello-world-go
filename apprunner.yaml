@@ -2,13 +2,9 @@ version: 1.0
 runtime: go1
 build:
   commands:
-    build:
-      - go install github.com/a-h/templ/cmd/templ@latest
-      - go get github.com/a-h/templ
-      - templ generate
-      - go mod tidy
-      - go build -o server
+    - docker build -t myapp .
 run:
-  command: ./server
+  runtime: golang
+  command: docker run -p 8080:8080 myapp
   network:
     port: 8080
