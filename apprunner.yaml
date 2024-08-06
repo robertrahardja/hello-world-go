@@ -3,6 +3,7 @@ runtime: go1
 build:
   commands:
     build:
+      - go install github.com/a-h/templ/cmd/templ@latest
       - go get github.com/a-h/templ
       - templ generate
       - go mod tidy
