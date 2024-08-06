@@ -3,8 +3,11 @@ runtime: go1
 build:
   commands:
     build:
-      - go build main.go
+      - go get github.com/a-h/templ
+      - templ generate
+      - go mod tidy
+      - go build -o server
 run:
-  command: ./main
+  command: ./server
   network:
     port: 8080

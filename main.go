@@ -2,14 +2,21 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"os"
+
+	"github.com/a-h/templ"
 )
 
 func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, World!")
-	})
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	fmt.Println("Server starting on port 8080...")
-	http.ListenAndServe(":8080", nil)
+	http.Handle("/", templ.Handler(helloWorld()))
+
+	fmt.Printf("Server running on port %s\n", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
