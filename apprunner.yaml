@@ -2,9 +2,9 @@ version: 1.0
 runtime: go1
 build:
   commands:
-    - docker build -t myapp .
+    - docker build -t main .
 run:
   runtime: golang
-  command: docker run -p 8080:8080 myapp
+  command: docker run -p 8080:8080 main
   network:
     port: 8080

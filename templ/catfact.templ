@@ -1,0 +1,16 @@
+package templ 
+
+import ( 
+"strconv"
+"mine/catfact"
+)
+
+
+templ CatFactDisplay(catFact catfact.CatFact) {
+	<div>
+		<h1>Random Cat Fact</h1>
+		<p>Fact: {catFact.Fact}</p>
+		<p>Length: {strconv.Itoa(catFact.Length)}</p>
+		<button onclick="location.reload()">Get Another Fact</button>
+	</div>
+}

@@ -50,7 +50,7 @@ server
 
 # templ generated files
 *_templ.go
-
+templ/*._templ.go
 
 # Environment files
 .env

@@ -2,19 +2,34 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"mine/catfact"
+	"mine/templ"
 	"net/http"
-	"os"
-
-	"github.com/a-h/templ"
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	http.Handle("/", templ.Handler(helloWorld()))
-	fmt.Printf("Server running on port %s\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		catFact, err := catfact.FetchCatFact()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error fetching cat fact: %s", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Render HelloWorld component
+		err = templ.HelloWorld().Render(r.Context(), w)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error rendering HelloWorld: %s", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Render CatFactDisplay component
+		err = templ.CatFactDisplay(catFact).Render(r.Context(), w)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error rendering CatFactDisplay: %s", err), http.StatusInternalServerError)
+			return
+		}
+	})
+
+	fmt.Println("Server running on http://localhost:8080")
+	http.ListenAndServe(":8080", nil)
 }
