@@ -1,0 +1,158 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"mine/models"
+	"mine/templ"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	_ "github.com/lib/pq"
+)
+
+type DBSecret struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Engine   string `json:"engine"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	DBName   string `json:"dbname"`
+}
+
+func getSecretbak() (*DBSecret, error) {
+	secretName := os.Getenv("SECRET_NAME")
+	if secretName == "" {
+		secretName = "dbtestsecret" // fallback to hardcoded value if env var not set
+	}
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		region = "ap-southeast-1" // fallback to hardcoded value if env var not set
+	}
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+	if err != nil {
+		return nil, fmt.Errorf("failed to load AWS config: %v", err)
+	}
+
+	svc := secretsmanager.NewFromConfig(cfg)
+	input := &secretsmanager.GetSecretValueInput{
+		SecretId:     aws.String(secretName),
+		VersionStage: aws.String("AWSCURRENT"),
+	}
+
+	result, err := svc.GetSecretValue(context.TODO(), input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret value: %v", err)
+	}
+
+	var dbSecret DBSecret
+	err = json.Unmarshal([]byte(*result.SecretString), &dbSecret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal secret: %v", err)
+	}
+
+	return &dbSecret, nil
+}
+
+func mainbak() {
+	dbSecret, err := getSecret()
+	if err != nil {
+		log.Fatalf("Error getting secret: %v", err)
+	}
+
+	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=require",
+		dbSecret.Host, dbSecret.Port, dbSecret.Username, dbSecret.Password, "postgres")
+
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatalf("Error opening database connection: %v", err)
+	}
+	defer db.Close()
+
+	// Test the connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = db.PingContext(ctx)
+	if err != nil {
+		log.Fatalf("Error pinging database: %v", err)
+	}
+
+	fmt.Println("Successfully connected to the database")
+
+	// Your existing HTTP handlers
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		templ.HelloWorld().Render(r.Context(), w)
+	})
+
+	// New handler for employees
+	http.HandleFunc("/employees", func(w http.ResponseWriter, r *http.Request) {
+		employees, err := getEmployees(db)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error fetching employees: %s", err), http.StatusInternalServerError)
+			return
+		}
+		err = templ.EmployeeList(employees).Render(r.Context(), w)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error rendering EmployeeList: %s", err), http.StatusInternalServerError)
+			return
+		}
+	})
+
+	srv := &http.Server{
+		Addr: "0.0.0.0:8080",
+	}
+
+	// Start server in a goroutine
+	go func() {
+		fmt.Println("Server running on http://0.0.0.0:8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	// The context is used to inform the server it has 5 seconds to finish
+	// the request it is currently handling
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	log.Println("Server exiting")
+}
+
+func getEmployees(db *sql.DB) ([]models.Employee, error) {
+	rows, err := db.Query("SELECT employee_id, first_name, last_name, email, hire_date, salary FROM employees")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var employees []models.Employee
+	for rows.Next() {
+		var e models.Employee
+		err := rows.Scan(&e.ID, &e.FirstName, &e.LastName, &e.Email, &e.HireDate, &e.Salary)
+		if err != nil {
+			return nil, err
+		}
+		employees = append(employees, e)
+	}
+	return employees, nil
+}

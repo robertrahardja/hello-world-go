@@ -1,0 +1,53 @@
+
+package templ
+
+import (
+  "mine/models"
+)
+
+templ FormTempl(data models.Data) {
+    <!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<title>HTMX Counter</title>
+		<script src="https://unpkg.com/htmx.org@1.9.6"></script>
+	</head>
+	<body>
+		<h1>Form Testing</h1>
+@FormDisplay(data)
+	</body>
+	</html>
+  }
+
+  templ FormT(Values models.FormData) {
+if len(Values.Values) > 0 {
+  for key, value := range Values.Values {
+    <p>{key}: {value}</p>
+  }
+}
+    <form hx-post="/form/contacts" hx-target="#contacts" hx-swap="outerHTML">
+    name: <input type="text" name="name"><br>
+    <br>
+    email: <input type="text" name="email"><br>
+    <br>
+    <button type="submit">Submit</button>
+    </form>
+
+  }
+
+  templ FormDisplay(data models.Data){
+    <div id="contacts">
+    <h1>Form Display</h1>
+     <ul>
+        for _, contact := range data.Contacts {
+            <li>{contact.Name} - {contact.Email}</li>
+        }
+    </ul>
+    </div>
+    
+
+  }
+
+
